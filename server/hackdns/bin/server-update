@@ -1,0 +1,127 @@
+#! /usr/bin/env python
+
+import hashlib
+import subprocess
+import sys
+import external
+import socket
+import urllib2
+from StringIO import StringIO
+try:
+    from M2Crypto import BIO, RSA
+    import dns.message
+    import dns.resolver
+    import dns.query
+    from dns.exception import DNSException
+except ImportError:
+    print >>sys.stderr, 'Have read README?'
+    sys.exit(1)
+from django.conf import settings
+from hackdns.root.models import Server
+
+def get_resolver(server):
+    resolver = dns.resolver.Resolver()
+    resolver.reset()
+    resolver.read_resolv_conf(StringIO('nameserver %s\n' % (server.ipv4,)))
+    return resolver
+
+def test_keys(server):
+    resolver = get_resolver(server)
+    bio  = BIO.MemoryBuffer(str(server.key_private))
+    rsa  = RSA.load_key_bio(bio)
+    test = 'hackdns.eu testing 123'
+    sigs = rsa.sign(test, 'sha1')
+    bio1 = BIO.MemoryBuffer(str(server.key_public))
+    rsa1 = RSA.load_pub_key_bio(bio1)
+    bio2 = BIO.MemoryBuffer()
+
+    answers = resolver.query('keys.root.hack', 'TXT')
+    for answer in answers:
+        try:
+            text = str(answer).strip('"').replace('" "', '\n')
+            pkey = '-----BEGIN PUBLIC KEY-----\n%s\n-----END PUBLIC KEY-----' % (text,)
+            print pkey
+            bio2.flush()
+            bio2.write(pkey)
+            rsa2 = RSA.load_pub_key_bio(bio2)
+            if rsa2.verify(test, sigs, 'sha1'):
+                print 'Nameserver public key verified OK'
+            else:
+                print >>sys.stderr, 'Namserver public key verification failed'
+        except M2Crypto.RSA.RSAError, e:
+            print >>sys.stderr, 'Nameserver public key verification failed:', str(e)
+
+
+def update_server(fqdn, save=True):
+    try:
+        server = Server.objects.get(fqdn=fqdn)
+    except Server.DoesNotExist:
+        server = Server(fqdn=fqdn)
+
+    resolver = Server.get_resolver()
+    try:
+        for answer in resolver.query(fqdn, 'A'):
+            print 'ipv4', answer
+            server.ipv4 = str(answer)
+    except DNSException:
+        print 'ipv4 not present'
+        server.ipv4 = None
+
+    try:
+        for answer in resolver.query(fqdn, 'AAAA'):
+            print 'ipv6', answer
+            server.ipv6 = str(answer)
+    except DNSException:
+        print 'ipv6 not present'
+        server.ipv6 = None
+
+    try:
+        query = dns.message.make_query('keys.root.hack', 'TXT')
+        message = dns.query.tcp(query, server.address)
+        if not message.answer:
+            raise DNSException
+        for answer in message.answer:
+            text = str(answer).strip('"').replace('" "', '\n')
+            pkey = '-----BEGIN PUBLIC KEY-----\n%s\n-----END PUBLIC KEY-----' % (text,)
+            print 'pkey'
+            print pkey
+            server.key_public = pkey
+    except DNSException:
+        print 'keys not present via DNS, trying HTTP'
+        request = urllib2.Request('http://%s:%d/root/pubkey/' % (fqdn,
+            settings.HACKDNS_SERVER_PORT))
+        try:
+            opener = urllib2.urlopen(request)
+            pkey = opener.read()
+        except urllib2.HTTPError, e:
+            print 'keys not present via HTTP, server not configured?'
+            print 'error was:', str(e)
+            return 1
+    if save:
+        server.save()
+
+def run():
+    try:
+        server = Server.self()
+    except Server.DoesNotExist:
+        print >>sys.stderr, 'Server not yet configured (run server-bootstrap)'
+        return 1
+
+    roots = Server.get_roots()
+    for fqdn in sorted(roots):
+        if server.fqdn == fqdn:
+            print 'test', fqdn, '(that\'s me!)'
+            update_server(fqdn, save=False)
+        else:
+            print 'test', fqdn
+            update_server(fqdn)
+
+
+if __name__ == '__main__':
+    try:
+        sys.exit(run())
+    except KeyboardInterrupt:
+        print >>sys.stderr, '\nServer configuration aborted!'
+        sys.exit(1)
+
+

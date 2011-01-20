@@ -5,6 +5,8 @@ from django.conf.urls.defaults import *
 # admin.autodiscover()
 
 urlpatterns = patterns('',
+    url(r'^root/',
+        include('hackdns.root.urls')),
     # Example:
     # (r'^hackdns/', include('hackdns.foo.urls')),
 

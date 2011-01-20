@@ -1,0 +1,52 @@
+Requirements
+============
+
+Nameserver:
+
+    * bind9 (or compatible)
+
+Webserver:
+
+    * apache 2.x
+
+    * mod_wsgi (with Python 2.5+)
+
+Python:
+
+    * Python 2.5+ (not 3.x)
+
+    * Django 1.2+
+        * http://www.djangoproject.com/
+        * apt-get install python-django
+        * easy_setup django
+        * pip install django
+
+    * M2Crypto
+        * http://chandlerproject.org/bin/view/Projects/MeTooCrypto
+        * apt-get install python-m2crypto
+        * easy_setup M2Crypto
+        * pip install M2Crypto
+
+    * dnspython
+        * http://www.dnspython.org/
+        * apt-get install python-dnspython
+        * easy_setup dns
+        * pip install dns
+
+Setup
+-----
+
+1. Configure your webserver to run Django properly
+
+For more info, see: 
+    * http://docs.djangoproject.com/en/dev/howto/deployment/modwsgi/
+
+2. Configure Django
+
+    make config
+    make syncdb
+
+3. Create an empty zone file with serial 1 called "keys.root.hack"
+
+Run the hackdns/server/hackdns/bin/bootstrap-server script, this
+will set up your server.

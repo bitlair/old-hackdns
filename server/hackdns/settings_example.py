@@ -93,9 +93,11 @@ INSTALLED_APPS = (
     'hackdns.entity',
 )
 
+# Server crypto
+HACKDNS_RSA_EXPONENT = 65537
 # Server fqdn
-HACKDNS_SERVER_FQDN = 'test0.xx.root.hack'
-HACKDNS_SERVER_TEST = 'test0.xx.root.hack'
+HACKDNS_SERVER_FQDN  = 'test.root.hack'
+HACKDNS_SERVER_TEST  = 'test.root.hack'
 # Default queue life time
-HACKDNS_QUEUE_TTL   = 300
+HACKDNS_QUEUE_TTL    = 300
 

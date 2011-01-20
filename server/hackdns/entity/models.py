@@ -1,7 +1,7 @@
 from django.db import models
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes import generic
-from hackdns.root.models import Server, Root
+from hackdns.root.models import Server, Queue
 
 
 class Vote(models.Model):
@@ -39,7 +39,7 @@ class Entity(models.Model):
         if ratio >= min_ratio:
             self.is_active = True
             self.save()
-            Root.broadcast('create_entity', entity=self)
+            Queue.broadcast('request_entity', entity=self)
 
 
 class Group(models.Model):
@@ -83,7 +83,7 @@ class Zone(models.Model):
 
 class Delegation(Entity):
     handle          = models.ForeignKey('Handle')
-    domain          = models.CharField()
+    domain          = models.CharField(max_length=128)
     zone            = models.ForeignKey('Zone')
 
     def __unicode__(self):

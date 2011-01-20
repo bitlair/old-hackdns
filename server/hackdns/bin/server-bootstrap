@@ -1,0 +1,119 @@
+#! /usr/bin/env python
+
+import os
+import subprocess
+import sys
+import external
+import socket
+from django.conf import settings
+from hackdns.root.models import Server
+
+
+def keygen_callback(p, n, out=sys.stdout):
+    """ 
+    Default callback for gen_key().
+    """
+    ch = ['.','+','*',' ']
+    out.write(ch[p])
+    out.flush()
+
+def get_keys():
+    if not os.path.isfile('secure/server.key'):
+        print >>sys.stderr, 'Generate secure/server.key first (hint: make keys)'
+        sys.exit(1)
+    if not os.path.isfile('secure/server.pub'):
+        print >>sys.stderr, 'Generate secure/server.pub first (hint: make keys)'
+        sys.exit(1)
+
+    key_data = file('secure/server.key').read()
+    pub_data = file('secure/server.pub').read()
+
+    return key_data, pub_data
+
+def resolve_hack():
+    try:
+        hack = socket.getaddrinfo('root.hack', 0)
+        root = list(set(item[4][0] for item in hack))
+        print 'Root servers found at', root
+        return root
+    except socket.error:
+        print 'Root not found, do you use a .hack-enabled resolver?'
+        sys.exit(1)
+
+def resolve_ipv4():
+    fqdn = socket.getfqdn()
+    try:
+        result = socket.getaddrinfo(fqdn, 0, socket.AF_INET)
+        return result[0][4][0]
+    except socket.error, e:
+        print 'IPv4 detection failed:', str(e)
+        return ''
+    except IndexError:
+        print 'IPv4 detection failed'
+        return ''
+
+def resolve_ipv6():
+    fqdn = socket.getfqdn()
+    try:
+        result = socket.getaddrinfo(fqdn, 0, socket.AF_INET6)
+        return result[0][4][0]
+    except socket.error, e:
+        print 'IPv6 detection failed:', str(e)
+        return ''
+    except IndexError:
+        print 'IPv6 detection failed'
+        return ''
+
+def run():
+    try:
+        server = Server.self()
+        print 'Server already configured as %s' % (unicode(server),)
+    except Server.DoesNotExist:
+        print 'Server not yet configured'
+        if settings.HACKDNS_SERVER_FQDN == settings.HACKDNS_SERVER_TEST:
+            print 'Edit your settings and change HACKDNS_SERVER_FQDN first'
+            return 1
+
+        print 'Resolving root.hack ...'
+        root = resolve_hack()
+
+        print 'Resolving the server addresses ...'
+        server = Server(
+            fqdn=settings.HACKDNS_SERVER_FQDN,
+            ipv4=resolve_ipv4(),
+            ipv6=resolve_ipv6())
+
+        server.key_private, server.key_public = get_keys()
+
+        fields = {
+            'ipv4': 'Server IPv4 address',
+            'ipv6': 'Server IPv6 address',
+        }
+
+        for attr in fields:
+            sys.stdout.write('%s [%s]: ' % (fields[attr], getattr(server, attr)))
+            sys.stdout.flush()
+            change = raw_input()
+            if change:
+                setattr(server, attr, change.strip())
+
+        for attr in ['fqdn', 'key_public', 'key_private'] + sorted(fields):
+            print '%-16s: %s' % (attr, getattr(server, attr))
+
+        sys.stdout.write('Does everything look OK? [yN]: ')
+        sys.stdout.flush()
+        change = raw_input().lower()
+        if change in ['y', 'yes', 'yup', 'yeah']:
+            server.save()
+            print 'Saved'
+        else:
+            print 'Aborted'
+
+if __name__ == '__main__':
+    try:
+        sys.exit(run())
+    except KeyboardInterrupt:
+        print >>sys.stderr, '\nServer configuration aborted!'
+        sys.exit(1)
+
+
