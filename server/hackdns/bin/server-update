@@ -81,7 +81,7 @@ def update_server(fqdn, save=True):
         if not message.answer:
             raise DNSException
         for answer in message.answer:
-            text = str(answer).strip('"').replace('" "', '\n')
+            text = str(answer.items[0].to_text()).strip('"').replace('" "', '\n')
             pkey = '-----BEGIN PUBLIC KEY-----\n%s\n-----END PUBLIC KEY-----' % (text,)
             print 'pkey'
             print pkey
