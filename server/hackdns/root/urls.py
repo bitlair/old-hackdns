@@ -7,4 +7,8 @@ from django.conf.urls.defaults import *
 urlpatterns = patterns('',
     url(r'^pubkey(?:/|\.txt)$',
         'hackdns.root.views.pubkey'),
+    url(r'^list/roots?/',
+        'hackdns.root.views.list_roots'),
+    url(r'^list/servers?/',
+        'hackdns.root.views.list_servers'),
 )
