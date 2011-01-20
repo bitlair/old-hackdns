@@ -1,3 +1,5 @@
 *.db
 *.pyc
 settings_production.py
+server/hackdns/secure/server.key
+server/hackdns/secure/server.pub
