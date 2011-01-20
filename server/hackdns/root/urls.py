@@ -11,4 +11,7 @@ urlpatterns = patterns('',
         'hackdns.root.views.list_roots'),
     url(r'^list/servers?/',
         'hackdns.root.views.list_servers'),
+
+    url(r'^test/secur(?:e|ity)',
+        'hackdns.root.views.test_secure'),
 )

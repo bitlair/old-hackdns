@@ -10,6 +10,8 @@ Webserver:
     * apache 2.x
 
     * mod_wsgi (with Python 2.5+)
+        * http://code.google.com/p/modwsgi/
+        * apt-get install libapache2-mod-wsgi
 
 Python:
 

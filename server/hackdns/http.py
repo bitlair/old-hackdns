@@ -11,7 +11,7 @@ def Response(request, template, **data):
         context_instance=RequestContext(request))
 
 def JsonResponse(**data):
-    serialized = json.dumps(data)
+    serialized = json.dumps(data, indent=2)
     return HttpResponse(serialized,
         content_type='text/plain') # FIXME: application/json
 
