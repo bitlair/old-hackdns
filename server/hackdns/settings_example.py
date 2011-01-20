@@ -1,5 +1,10 @@
 # Django settings for hackdns project.
 
+import os
+
+HACKDNS_ROOT = os.path.dirname(os.path.abspath(__file__))
+HACKDNS_HTML = os.path.join(HACKDNS_ROOT, 'templates')
+
 DEBUG = True
 TEMPLATE_DEBUG = DEBUG
 
@@ -77,9 +82,7 @@ MIDDLEWARE_CLASSES = (
 ROOT_URLCONF = 'hackdns.urls'
 
 TEMPLATE_DIRS = (
-    # Put strings here, like "/home/html/django_templates" or "C:/www/django/templates".
-    # Always use forward slashes, even on Windows.
-    # Don't forget to use absolute paths, not relative paths.
+    HACDNS_HTML,
 )
 
 INSTALLED_APPS = (
@@ -95,9 +98,13 @@ INSTALLED_APPS = (
 
 # Server crypto
 HACKDNS_RSA_EXPONENT = 65537
+HACKDNS_KEY_PRIVATE  = os.path.join(HACKDNS_ROOT, 'secure', 'server.key')
+HACKDNS_KEY_PRIVATE  = os.path.join(HACKDNS_ROOT, 'secure', 'server.pub')
 # Server fqdn
 HACKDNS_SERVER_FQDN  = 'test.root.hack'
 HACKDNS_SERVER_TEST  = 'test.root.hack'
+# SERVER_PORT: Use 80 for production
+# SERVER_PORT: Use 8042 to talk to the development server
+HACKDNS_SERVER_PORT  = 80
 # Default queue life time
 HACKDNS_QUEUE_TTL    = 300
-
