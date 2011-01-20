@@ -1,0 +1,12 @@
+<VirtualHost *:80>
+    # Replace with your root-server identity
+    ServerName test.root.hack
+    ServerAlias test.hackdns.eu
+
+    DocumentRoot /var/www/hackdns/server/hackdns/media
+
+    WSGIDaemonProcess hackdns user=nobody group=nogroup threads=5 display-name=%{GROUP}
+    WSGIProcessGroup hackdns
+    WSGIScriptAlias / /var/www/hackdns/server/hackdns/apache.py
+</VirtualHost>
+
