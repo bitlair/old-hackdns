@@ -54,8 +54,14 @@ class Group(models.Model):
 
 
 class Handle(Entity):
-    name    = models.CharField(max_length=32)
-    group   = models.ForeignKey('Group')
+    name            = models.CharField(max_length=32)
+    group           = models.ForeignKey('Group', related_name='group')
+    email           = models.EmailField()
+    email_alt       = models.EmailField(null=True, blank=True)
+    key_id          = models.CharField(max_length=255)
+    key_data        = models.TextField()
+    remark          = models.TextField(default='', blank=True)
+    source          = models.ForeignKey('Group', related_name='source')
 
     class Meta:
         unique_together = (
@@ -67,6 +73,7 @@ class Handle(Entity):
 
     def save(self, *args, **kwargs):
         self.name = self.name.upper()
+        self.source = Group.objects.get(name='HACK')
         super(Handle, self).save(*args, **kwargs)
 
 
@@ -94,3 +101,6 @@ class DelegationNameServer(models.Model):
     delegation      = models.ForeignKey('Delegation')
     fqdn            = models.CharField(max_length=128)
     
+    def __unicode__(self):
+        return self.fqdn
+

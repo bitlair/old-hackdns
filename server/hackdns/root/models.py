@@ -90,6 +90,13 @@ class Server(models.Model):
         his_rsa = RSA.load_pub_key_bio(his_bio)
         return own_rsa.private_decrypt(message, RSA.pkcs1_padding)
 
+    def verify(self, signer, data, signature, algorithm='sha1'):
+        '''
+        Verify an RSA signature.
+        '''
+        bio = BIO.MemoryBuffer(str(signer.key_public))
+        rsa = RSA.load_pub_key_bio(his_bio)
+        return rsa.verify(data, signature, algo=algorithm)
 
 class Queue(models.Model):
     src_server      = models.ForeignKey('Server', related_name='src')
