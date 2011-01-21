@@ -23,5 +23,5 @@ def list_servers(request):
 
 @secure_required
 def test_secure(request):
-    return JsonResponse(status='ok')
+    return JsonResponse(status='ok', request=dict(request.POST))
 

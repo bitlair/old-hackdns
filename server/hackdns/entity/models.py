@@ -1,3 +1,4 @@
+import uuid
 from django.db import models
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes import generic
@@ -26,6 +27,7 @@ class Entity(models.Model):
     is_temporary    = models.BooleanField(default=False, blank=True)
     is_placeholder  = models.BooleanField(default=False, blank=True)
     votes           = generic.GenericRelation('Vote')
+    ticket          = models.CharField(max_length=32)
 
     class Meta:
         abstract = True
@@ -41,6 +43,14 @@ class Entity(models.Model):
             self.save()
             Queue.broadcast('request_entity', entity=self)
 
+    def generate_ticket(self):
+        return uuid.uuid4().hex
+
+    def save(self, *args, **kwargs):
+        if not self.ticket:
+            self.ticket = self.generate_ticket()
+        return super(Entity, self).save(*args, **kwargs)
+
 
 class Group(models.Model):
     name    = models.CharField(max_length=32, unique=True)
@@ -50,7 +60,7 @@ class Group(models.Model):
 
     def save(self, *args, **kwargs):
         self.name = self.name.upper()
-        super(Group, self).save(*args, **kwargs)
+        return super(Group, self).save(*args, **kwargs)
 
 
 class Handle(Entity):
@@ -74,7 +84,7 @@ class Handle(Entity):
     def save(self, *args, **kwargs):
         self.name = self.name.upper()
         self.source = Group.objects.get(name='HACK')
-        super(Handle, self).save(*args, **kwargs)
+        return super(Handle, self).save(*args, **kwargs)
 
 
 class Zone(models.Model):

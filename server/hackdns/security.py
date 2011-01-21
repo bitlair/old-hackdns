@@ -51,35 +51,13 @@ class ServerSecurityMiddleware(object):
 
         # Read potential headers
         content_encryption = request.META.get('HTTP_CONTENT_ENCRYPTION', None)
-        content_hash = request.META.get('HTTP_CONTENT_HASH', None)
-        content_signature = request.META.get('HTTP_CONTENT_SIGNATURE', None)
-        server_fqdn  = request.META.get('HTTP_SERVER_FQDN', None)
+        server_fqdn = request.META.get('HTTP_SERVER_FQDN', None)
 
         # Got them
-        if content_encryption and content_hash and content_signature and server_fqdn:
+        if content_encryption and server_fqdn:
 
             print 'content_encryption', content_encryption
-            print 'content_hash', content_hash
-            print 'content_signature', content_signature
             print 'server_fqdn', server_fqdn
-
-            # Only RSA supported :-)
-            if content_encryption.lower() != 'rsa':
-                return HttpResponseBadRequest('Content-Encryption not supported.')
-
-            try:
-                algorithm, post_hash = map(lambda x: x.strip().lower(),
-                    content_hash.split(';'))
-            except ValueError:
-                return HttpResponseBadRequest('Content-Hash invalid.')
-            else:
-                if algorithm.lower() not in HASH_ALGO:
-                    return HttpResponseBadRequest('Content-Hash unsupported method.')
-
-            try:
-                signature = content_signature.decode('base64')
-            except:
-                return HttpResponseBadRequest('Content-Signature decoding failed.')
 
             # Lookup server
             try:
@@ -87,33 +65,53 @@ class ServerSecurityMiddleware(object):
             except Server.DoesNotExist:
                 return HttpResponseForbidden('Server not found.')
 
-            if request.method == 'POST':
-                # Decrypt POST-data
-                try:
-                    post_encrypted = request.raw_post_data.decode('base64')
-                except:
-                    return HttpResponseBadRequest('Content decoding failed.')
-                try:
-                    post_decrypted = request.server.decrypt(request.client,
-                        post_encrypted)
-                except RSAError:
-                    return HttpResponseBadRequest('Content decryption failed.')
+            # Chunked RSA-encrypted POST request
+            if content_encryption.lower() == 'rsa-chunked':
+                if request.method == 'POST':
+                    chunks = request.POST.get('chunks', '')
+                    # Decrypt POST-data
+                    if chunks and chunks.isdigit():
+                        chunks = int(chunks)
+                        own_key = request.server._private_key
+                        his_key = request.client._public_key
 
-                # Check POST-data hash signature
-                try:
-                    request.server.verify(request.server,
-                        post_hash, signature, algorithm)
-                except Exception, e:
-                    raise
-                    return HttpResponseBadRequest(str(e))
+                        try:
+                            post_decrypted = []
+                            for chunk in xrange(0, chunks):
+                                own = request.POST.get('his%d' % (chunk,)).decode('base64')
+                                his = request.POST.get('own%d' % (chunk,)).decode('base64')
+                                post_decrypted.append(request.server.decrypt(request.client, 
+                                    his, own, his_key, own_key))
+                        except RSAError, e:
+                            return HttpResponseBadRequest('Content decryption failed: %r.' % (e, ))
+                        except Exception: # for base64 decode
+                            return HttpResponseBadRequest('Content decoding failed.')
+                        
+                        request.POST = QueryDict(''.join(post_decrypted),
+                            request._encoding)
+                        request.is_secured = True
+                        del post_decrypted            
 
-                # check POST-data hash
-                #hash_func = HASH_ALGO[algorithm.lower()]
-                #post_decrypted_hash = hash_func(post_decrypted).hexdigest()
-                #if post_decrypted_hash != hash:
-                #    return HttpResponseBadRequest('Content-Hash invalid.')
-                
-                request.POST = QueryDict(post_decrypted,
-                    request._encoding)
-                request.is_secured = True
+                    else:
+                        return HttpResponseBadRequest('Content decoding failed.')
 
+            # Single RSA-encrypted POST request
+            elif content_encryption.lower() == 'rsa':
+                if request.method == 'POST':
+                    try:
+                        post_decrypted = request.server.decrypt(request.client,
+                            request.POST.get('his').decode('base64'),
+                            request.POST.get('own').decode('base64'))
+                    except RSAError, e:
+                        return HttpResponseBadRequest('Content decryption failed: %r.' % (e, ))
+                    except Exception: # for base64 decode
+                        return HttpResponseBadRequest('Content decoding failed.')
+                    
+                    request.POST = QueryDict(post_decrypted,
+                        request._encoding)
+                    request.is_secured = True
+                    del post_decrypted            
+                    
+
+            else:
+                return HttpResponseBadRequest('Content-Encryption not supported.')

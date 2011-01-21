@@ -1,4 +1,5 @@
 import datetime
+import itertools
 from django.db import models
 from django.contrib.contenttypes.models import ContentType
 from django.conf import settings
@@ -30,6 +31,18 @@ class Server(models.Model):
 
     def __unicode__(self):
         return self.fqdn
+
+    @property
+    def _private_key(self):
+        bio = BIO.MemoryBuffer(str(self.key_private))
+        key = RSA.load_key_bio(bio)
+        return key
+
+    @property
+    def _public_key(self):
+        bio = BIO.MemoryBuffer(str(self.key_public))
+        key = RSA.load_pub_key_bio(bio)
+        return key
 
     @property
     def address(self):
@@ -77,25 +90,28 @@ class Server(models.Model):
         '''
         Encrypt message to other server. The message must be a byte string.
         '''
-        own_bio = BIO.MemoryBuffer(str(self.key_private))
-        own_rsa = RSA.load_key_bio(own_bio)
-        his_bio = BIO.MemoryBuffer(str(other.key_public))
-        his_rsa = RSA.load_pub_key_bio(his_bio)
+        bio = BIO.MemoryBuffer(str(other.key_public))
+        rsa = RSA.load_pub_key_bio(his_bio)
         return his_rsa.public_encrypt(message, RSA.pkcs1_padding)
 
-    def decrypt(self, other, message):
-        own_bio = BIO.MemoryBuffer(str(self.key_private))
-        own_rsa = RSA.load_key_bio(own_bio)
-        his_bio = BIO.MemoryBuffer(str(other.key_public))
-        his_rsa = RSA.load_pub_key_bio(his_bio)
-        return own_rsa.private_decrypt(message, RSA.pkcs1_padding)
+    def decrypt(self, other, his, own, his_key=None, own_key=None):
+        if not his_key:
+            his_key = other._public_key
+        if not own_key:
+            own_key = Server.self()._private_key
+
+        # Decrypt
+        his_raw = his_key.public_decrypt(his, RSA.pkcs1_padding)
+        own_raw = own_key.private_decrypt(own, RSA.pkcs1_padding)
+        assert his_raw == own_raw
+        return his_raw
 
     def verify(self, signer, data, signature, algorithm='sha1'):
         '''
         Verify an RSA signature.
         '''
         bio = BIO.MemoryBuffer(str(signer.key_public))
-        rsa = RSA.load_pub_key_bio(his_bio)
+        rsa = RSA.load_pub_key_bio(bio)
         return rsa.verify(data, signature, algo=algorithm)
 
 class Queue(models.Model):
