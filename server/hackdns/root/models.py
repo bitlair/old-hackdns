@@ -34,13 +34,13 @@ class Server(models.Model):
 
     @property
     def _private_key(self):
-        bio = BIO.MemoryBuffer(str(self.key_private))
+        bio = BIO.MemoryBuffer(bytes(self.key_private))
         key = RSA.load_key_bio(bio)
         return key
 
     @property
     def _public_key(self):
-        bio = BIO.MemoryBuffer(str(self.key_public))
+        bio = BIO.MemoryBuffer(bytes(self.key_public))
         key = RSA.load_pub_key_bio(bio)
         return key
 
@@ -90,7 +90,7 @@ class Server(models.Model):
         '''
         Encrypt message to other server. The message must be a byte string.
         '''
-        bio = BIO.MemoryBuffer(str(other.key_public))
+        bio = BIO.MemoryBuffer(bytes(other.key_public))
         rsa = RSA.load_pub_key_bio(his_bio)
         return his_rsa.public_encrypt(message, RSA.pkcs1_padding)
 
@@ -110,7 +110,7 @@ class Server(models.Model):
         '''
         Verify an RSA signature.
         '''
-        bio = BIO.MemoryBuffer(str(signer.key_public))
+        bio = BIO.MemoryBuffer(bytes(signer.key_public))
         rsa = RSA.load_pub_key_bio(bio)
         return rsa.verify(data, signature, algo=algorithm)
 
