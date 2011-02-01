@@ -3,6 +3,11 @@ import itertools
 from django.db import models
 from django.contrib.contenttypes.models import ContentType
 from django.conf import settings
+from django.db.models.signals import post_init, pre_save
+try:
+    from django.dispatch import receiver
+except ImportError:
+    from hackdns.compat import receiver
 from M2Crypto import BIO, RSA
 from dns import rdatatype
 from dns.exception import DNSException
@@ -124,6 +129,7 @@ class Queue(models.Model):
     call            = models.CharField(max_length=32)
     args            = models.TextField()
     parent          = models.ForeignKey('self', null=True, blank=True)
+    ticket          = models.CharField(max_length=32, default='', blank=True)
 
     @staticmethod
     def broadcast(call, entity=None, **args):
@@ -140,11 +146,22 @@ class Queue(models.Model):
                 call=call,
                 args=args).save()
 
-    def save(self, *args, **kwargs):
-        if not isinstance(self.args, basestring):
-            self.args = json.dumps(self.args)
-        if not self.date_expired:
-            self.date_expired = datetime.datetime.now() + \
-                datetime.timedelta(secs=settings.HACKDNS_QUEUE_TTL)
-        return super(Queue, self).save(*args, **kwargs)
+
+@receiver(post_init, sender=Queue)
+def queue_unpack_args(sender, instance, **kwargs):
+    if not instance.args:
+        instance.args = {}
+    elif isinstance(instance.args, basestring):
+        instance.args = json.loads(instance.args)
+
+@receiver(pre_save, sender=Queue)
+def queue_pack_args(sender, instance, **kwargs):
+    if not isinstance(instance.args, basestring):
+        instance.args = json.dumps(instance.args)
+ 
+@receiver(pre_save, sender=Queue)
+def queue_expire(sender, instance, **kwargs):
+    if not instance.date_expired:
+        instance.date_expired = datetime.datetime.now() + \
+            datetime.timedelta(secs=settings.HACKDNS_QUEUE_TTL)
 
