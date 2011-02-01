@@ -1,7 +1,7 @@
 PYTHON := /usr/bin/env python
 MANAGE := $(PYTHON) manage.py
 
-KEY_BITS      := 1024
+KEY_BITS      := 4096
 SETTINGS_PROD := --settings=hackdns.settings_production
 SETTINGS_TEST := --settings=hackdns.settings_example
 
